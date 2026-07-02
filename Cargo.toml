@@ -1,6 +1,6 @@
 [package]
 name = "alfred-granted"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Alfred workflow to assume AWS profiles and open the AWS console via granted"
 license = "MIT"
