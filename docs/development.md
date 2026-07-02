@@ -58,8 +58,14 @@ cargo build
 # List profiles (JSON, ranked by frecency, filtered by the query)
 ./target/debug/alfred-granted list prod | python3 -m json.tool
 
+# Service mode: an exact profile name + a space switches to services
+./target/debug/alfred-granted list "prod-admin ec" | python3 -m json.tool
+
 # Open the console for a profile (runs assumego + open)
 ./target/debug/alfred-granted console prod-admin
+
+# Open the console straight to a service (assumego <profile> -s <alias>)
+./target/debug/alfred-granted console "prod-admin ec2"
 ```
 
 ## Testing strategy
@@ -72,8 +78,10 @@ offline, without granted, AWS credentials, or a network connection.
 | Test file                 | Covers                                                        |
 | ------------------------- | ------------------------------------------------------------- |
 | `tests/frecency_test.rs`  | Parsing the frecency DB; malformed/missing files degrade to empty. |
-| `tests/profiles_test.rs`  | Completion parsing, frecency ordering, substring/multi-term filtering, `fetch` invocation. |
-| `tests/console_test.rs`   | URL extraction and the assumego → open sequence, including failure paths. |
+| `tests/profiles_test.rs`  | Completion parsing, frecency ordering, substring/multi-term filtering, `fetch` invocation, service-mode detection (`parse_service_query`). |
+| `tests/services_test.rs`  | The static service table (sorted, unique) and its substring filter over alias + destination. |
+| `tests/alfred_test.rs`    | JSON shape of profile and service items (`arg` encoding, subtitles, empty-state item). |
+| `tests/console_test.rs`   | URL extraction and the assumego → open sequence (with and without `-s <service>`), including failure paths. |
 
 When adding behaviour, keep new logic pure where possible and assert on
 `FakeRunner` invocations for the process-spawning parts.

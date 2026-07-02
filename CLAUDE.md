@@ -17,9 +17,13 @@ An Alfred (macOS) workflow written in Rust. A single binary, `alfred-granted`,
 backs two objects in the Alfred workflow graph via two subcommands:
 
 - `alfred-granted list [query]` — the **Script Filter** (keyword `assume`).
-  Prints matching AWS profiles as Alfred JSON on every keystroke.
-- `alfred-granted console <profile>` — the **Run Script** action. Opens the AWS
-  console for the selected profile.
+  Prints matching AWS profiles as Alfred JSON on every keystroke. Once the query
+  is an exact profile name followed by a space, it switches to **service mode**
+  and lists granted's `-s` service aliases instead (see below).
+- `alfred-granted console <arg>` — the **Run Script** action. `arg` is the
+  selected item's `arg`: either `"<profile>"` or `"<profile> <service>"` (the
+  subcommand splits on whitespace). Opens the AWS console for the profile,
+  optionally at a specific service.
 
 The binary ships inside `workflow/` (with `info.plist`) and is packaged into a
 `.alfredworkflow` file for distribution.
@@ -56,24 +60,46 @@ pure and route any new process spawn through `CommandRunner`.
 Data flow for `list`: `profiles::fetch` runs
 `FORCE_NO_ALIAS=true assumego --generate-bash-completion` (the exact command
 granted's own shell completion uses — this is deliberately *not* parsing
-`~/.aws/config`) → `frecency::load` parses `~/.granted/aws_profiles_frecency`
-into name→score → `profiles::order_by_frecency` ranks → `profiles::filter`
-keeps profiles containing every whitespace-separated query term as a
-case-insensitive **substring**, preserving frecency order → `alfred::build_items`
-produces `powerpack::Item`s (with an `autocomplete` value for Tab completion).
+`~/.aws/config`) → then `profiles::parse_service_query` decides the mode:
 
-Data flow for `console`: `console::open_console` runs `assumego <profile> -c`
-with `GRANTED_ALIAS_CONFIGURED=true` (the env granted's shell wrapper sets, which
-makes assumego print `GrantedOutput\n<url>` to stdout — works even when
-`DefaultBrowser=STDOUT`), extracts the `https://` URL, and shells out to `open`.
-Note the two paths use different env: listing uses `FORCE_NO_ALIAS=true`, console
-uses `GRANTED_ALIAS_CONFIGURED=true`.
+- **Profile mode** (default): `frecency::load` parses
+  `~/.granted/aws_profiles_frecency` into name→score → `profiles::order_by_frecency`
+  ranks → `profiles::filter` keeps profiles containing every whitespace-separated
+  query term as a case-insensitive **substring**, preserving frecency order →
+  `alfred::build_items` produces `powerpack::Item`s (`arg` = profile name).
+- **Service mode**: entered when the first whitespace-separated token is an
+  *exact* (case-insensitive) profile name **and** the query has whitespace after
+  it (i.e. the user finished typing a profile and pressed space). The rest of the
+  query filters `services::SERVICES` (a static mirror of granted's `ServiceMap`,
+  `src/services.rs`) by case-insensitive substring against **both** the alias and
+  its console destination → `alfred::build_service_items` produces items whose
+  `arg` is `"<profile> <alias>"`.
+
+Requiring an *exact* first token is what keeps multi-term profile search working
+(`sandbox admin` stays in profile mode). The only ambiguity is when one profile
+is an exact token of an intended broader search (both `prod` and `prod-admin`
+exist, user types `prod admin`) — an accepted trade-off for a delimiter-free
+syntax.
+
+Data flow for `console`: `run_console` splits its single `arg` into profile and
+optional service, then `console::open_console` runs `assumego <profile> -c`
+(no service) or `assumego <profile> -s <alias>` (service; granted's `-s` is
+"like `-c` but opens to a service") with `GRANTED_ALIAS_CONFIGURED=true` (the env
+granted's shell wrapper sets, which makes assumego print `GrantedOutput\n<url>`
+to stdout — works even when `DefaultBrowser=STDOUT`), extracts the `https://`
+URL, and shells out to `open`. Note the two `list`/`console` paths use different
+env: listing uses `FORCE_NO_ALIAS=true`, console uses
+`GRANTED_ALIAS_CONFIGURED=true`.
 
 ## Conventions that matter here
 
 - **No `uid` on Alfred items** — Alfred would re-sort by its own usage knowledge
   and override our frecency ranking. Ranking/filtering is done in Rust, not by
   Alfred (`alfredfiltersresults = false` in the plist).
+- **The service table is a static mirror**: `services::SERVICES` is a hand-kept
+  snapshot of granted's `ServiceMap` (`pkg/console/service_map.go`), not runtime
+  data. When bumping the supported granted version, re-check that file and update
+  the table (a test asserts it stays sorted by alias with unique aliases).
 - **Frecency is best-effort**: a missing/malformed frecency file yields an empty
   score map, never an error — listing must not break.
 - **`list` never hard-fails**: errors are surfaced as an Alfred item so the user

@@ -66,6 +66,31 @@ pub fn order_by_frecency(profiles: Vec<String>, scores: &HashMap<String, f64>) -
     ranked.into_iter().map(|(_, name)| name).collect()
 }
 
+/// Decide whether `query` selects a profile and switches to *service mode*.
+///
+/// Service mode is entered as soon as the first whitespace-separated token is an
+/// **exact** (case-insensitive) profile name *and* the query has whitespace
+/// after it — i.e. the user has fully typed a profile and pressed space. In that
+/// case we return `(canonical_profile, service_query)` where `service_query` is
+/// the rest of the query (leading whitespace trimmed, possibly empty). Otherwise
+/// we return `None` and the caller stays in profile-filtering mode.
+///
+/// Because the check requires an *exact* match, the multi-term profile filter
+/// still works: `sandbox admin` stays in profile mode (neither "sandbox" is a
+/// profile) and matches `sandbox-admin`. The only ambiguity is when one profile
+/// is an exact prefix token of another intended search (e.g. both `prod` and
+/// `prod-admin` exist and the user types `prod admin` meaning the latter) — a
+/// rare collision we accept in exchange for a delimiter-free syntax.
+pub fn parse_service_query(query: &str, profiles: &[String]) -> Option<(String, String)> {
+    let (head, rest) = query.trim_start().split_once(char::is_whitespace)?;
+
+    let canonical = profiles
+        .iter()
+        .find(|profile| profile.eq_ignore_ascii_case(head))?;
+
+    Some((canonical.clone(), rest.trim_start().to_owned()))
+}
+
 /// Filter `profiles` against `query`, keeping only those that contain every
 /// whitespace-separated term of the query as a case-insensitive substring.
 /// Input order (i.e. the frecency ranking) is preserved.

@@ -7,11 +7,13 @@ that map to the two objects in the Alfred workflow graph:
 
 | Subcommand                    | Alfred object                    | Responsibility                                              |
 | ----------------------------- | -------------------------------- | ----------------------------------------------------------- |
-| `alfred-granted list [query]` | Script Filter (`input.scriptfilter`) | Print matching AWS profiles as Alfred JSON.             |
-| `alfred-granted console <profile>` | Run Script (`action.script`)  | Resolve the console URL and open it in the browser.     |
+| `alfred-granted list [query]` | Script Filter (`input.scriptfilter`) | Print matching AWS profiles — or services, once a profile is selected — as Alfred JSON. |
+| `alfred-granted console <arg>` | Run Script (`action.script`)  | Split `arg` into profile + optional service, resolve the console URL, open it. |
 
 Alfred invokes `list` on every keystroke and `console` once, when the user hits
-<kbd>Enter</kbd> on a result.
+<kbd>Enter</kbd> on a result. The console action's `arg` is the selected item's
+`arg`: `"<profile>"` for a profile item, `"<profile> <service>"` for a service
+item (neither part contains whitespace, so `console` splits on it).
 
 ## Data flow
 
@@ -33,9 +35,17 @@ sequenceDiagram
     B-->>A: JSON items (ranked, filtered)
     A-->>U: dropdown of profiles
 
-    U->>A: Enter on "prod-admin"
-    A->>B: console "prod-admin"
-    B->>G: GRANTED_ALIAS_CONFIGURED=true assumego prod-admin -c
+    Note over U,B: optional service mode
+    U->>A: type "assume prod-admin s3"
+    A->>B: list "prod-admin s3"
+    B->>G: assumego --generate-bash-completion
+    G-->>B: profile names (to confirm "prod-admin" is exact)
+    B-->>A: JSON items (services matching "s3")
+    A-->>U: dropdown of services
+
+    U->>A: Enter on "prod-admin" (or "prod-admin s3")
+    A->>B: console "prod-admin" (or "prod-admin s3")
+    B->>G: GRANTED_ALIAS_CONFIGURED=true assumego prod-admin -c (or -s s3)
     G-->>B: "GrantedOutput\n<federated console URL>"
     B->>OS: open <url>
     OS-->>U: AWS console in browser
@@ -49,10 +59,11 @@ src/
 ├── main.rs      Entry point: parse argv, dispatch to `list` / `console`.
 ├── lib.rs       Library root, re-exports the modules below.
 ├── runner.rs    CommandRunner trait + SystemRunner (the only impure boundary).
-├── profiles.rs  Fetch (via assumego), rank (frecency), filter (substring).
+├── profiles.rs  Fetch (via assumego), rank (frecency), filter (substring), detect service mode.
+├── services.rs  Static mirror of granted's service ServiceMap; substring filter.
 ├── frecency.rs  Parse ~/.granted/aws_profiles_frecency into name → score.
-├── alfred.rs    Turn profile names into powerpack `Item`s.
-└── console.rs   Resolve the console URL and open it.
+├── alfred.rs    Turn profile names / services into powerpack `Item`s.
+└── console.rs   Resolve the console URL (optionally at a service) and open it.
 ```
 
 ## Design decisions
@@ -99,6 +110,27 @@ fuzzy matching. Just as importantly, we **preserve the frecency order** of the
 survivors, and do not set a `uid` on items — otherwise Alfred would re-sort by
 its own usage knowledge and override our ranking. Items also carry an
 `autocomplete` value so <kbd>Tab</kbd> completes the query to the profile name.
+
+### Service mode: no delimiter, exact-profile trigger
+
+The Script Filter has a single query string, yet it must serve two searches:
+profiles, then services. Rather than introduce a delimiter (`prod-admin/ec2`),
+we switch to service mode as soon as the first whitespace-separated token is an
+**exact** profile name followed by whitespace — i.e. the user finished typing a
+profile and pressed space (`parse_service_query`). Requiring an *exact* match is
+what preserves the multi-term profile filter: `sandbox admin` keeps searching
+profiles because "sandbox" is not itself a profile. The accepted trade-off is a
+rare collision — if both `prod` and `prod-admin` exist and the user types
+`prod admin` meaning the latter, we read it as service mode for `prod`.
+
+The service list (`services::SERVICES`) is a static snapshot of granted's own
+`ServiceMap` (`pkg/console/service_map.go`) compiled into the binary — it is a
+fixed table upstream, not runtime data, so there is nothing to query at runtime.
+We filter it by substring against **both** the alias and its console destination
+(so `dynamo` finds `ddb`, `cost` finds `ce` → `cost-management`). Opening a
+service uses granted's `-s <alias>` flag, which is documented as "like `-c` but
+opens to a specified service" and emits the same structured stdout we already
+parse.
 
 ### The `CommandRunner` boundary
 

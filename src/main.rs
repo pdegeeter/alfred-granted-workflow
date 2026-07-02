@@ -11,7 +11,7 @@ use anyhow::{bail, Result};
 use powerpack::Item;
 
 use alfred_granted::runner::{CommandRunner, SystemRunner};
-use alfred_granted::{alfred, console, frecency, profiles};
+use alfred_granted::{alfred, console, frecency, profiles, services};
 
 fn main() -> ExitCode {
     let mut args = env::args().skip(1);
@@ -53,8 +53,18 @@ fn run_list(runner: &dyn CommandRunner, query: &str) -> ExitCode {
 }
 
 /// Gather, rank and filter profiles into Alfred items.
+///
+/// If the query has fully selected a profile followed by whitespace, switch to
+/// service mode and list matching service aliases for that profile instead.
 fn collect_items(runner: &dyn CommandRunner, query: &str) -> Result<Vec<Item>> {
     let profiles = profiles::fetch(runner)?;
+
+    if let Some((profile, service_query)) = profiles::parse_service_query(query, &profiles) {
+        let matching = services::filter(&service_query);
+
+        return Ok(alfred::build_service_items(&profile, matching));
+    }
+
     let scores = frecency::default_path()
         .map(|path| frecency::load(&path))
         .unwrap_or_default();
@@ -65,18 +75,32 @@ fn collect_items(runner: &dyn CommandRunner, query: &str) -> Result<Vec<Item>> {
     Ok(alfred::build_items(matching))
 }
 
-/// Action: open the AWS console for `profile`.
-fn run_console(runner: &dyn CommandRunner, profile: &str) -> ExitCode {
-    match open_console(runner, profile) {
+/// Action: open the AWS console for the selected profile, optionally at a
+/// service.
+///
+/// `arg` is the item's `arg` from the script filter: either `"<profile>"` or
+/// `"<profile> <service>"`. Since neither a profile name nor a service alias
+/// contains whitespace, we split on it to recover the two parts.
+fn run_console(runner: &dyn CommandRunner, arg: &str) -> ExitCode {
+    let mut parts = arg.split_whitespace();
+    let profile = parts.next().unwrap_or("");
+    let service = parts.next();
+
+    let label = match service {
+        Some(service) => format!("{profile} ({service})"),
+        None => profile.to_owned(),
+    };
+
+    match open_console(runner, profile, service) {
         Ok(url) => {
             // Printed so a downstream "Post Notification" can show feedback.
-            println!("Opened AWS console for {profile}");
+            println!("Opened AWS console for {label}");
             eprintln!("opened {url}");
 
             ExitCode::SUCCESS
         }
         Err(err) => {
-            println!("Failed to open console for {profile}");
+            println!("Failed to open console for {label}");
             eprintln!("{err:#}");
 
             ExitCode::FAILURE
@@ -84,10 +108,14 @@ fn run_console(runner: &dyn CommandRunner, profile: &str) -> ExitCode {
     }
 }
 
-fn open_console(runner: &dyn CommandRunner, profile: &str) -> Result<String> {
+fn open_console(
+    runner: &dyn CommandRunner,
+    profile: &str,
+    service: Option<&str>,
+) -> Result<String> {
     if profile.trim().is_empty() {
         bail!("no profile provided");
     }
 
-    console::open_console(runner, profile)
+    console::open_console(runner, profile, service)
 }
