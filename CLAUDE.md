@@ -87,6 +87,9 @@ uses `GRANTED_ALIAS_CONFIGURED=true`.
   `assets/granted-logo.svg` via `scripts/icon.sh` (needs `rsvg-convert`). Don't
   hand-edit the PNG; edit the SVG and regenerate. Both files are committed; it is
   not regenerated at build time, so CI needs no SVG tooling.
+- **Protected `main`**: work via PRs only (enforced for admins). CI `test` and
+  `package` must be green, and **all commits must be signed** (SSH signing) to
+  merge. See `docs/development.md` for the signing setup.
 
 ## Releases
 

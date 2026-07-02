@@ -1,5 +1,25 @@
 # Development
 
+## Contributing
+
+`main` is a protected branch:
+
+- Changes land via pull requests — direct pushes are rejected (enforced for
+  admins too).
+- The CI checks `test` and `package` must be green before a PR can be merged.
+- **All commits must be signed** (GitHub "require signed commits"). Configure
+  SSH commit signing so your commits verify:
+
+  ```sh
+  git config gpg.format ssh
+  git config user.signingkey ~/.ssh/<your-key>.pub
+  git config commit.gpgsign true
+  ```
+
+  The signing key must be registered on your GitHub account as a *signing* key,
+  and your commit email must be a verified GitHub email, otherwise the signature
+  will not verify and the push/merge will be blocked.
+
 ## Prerequisites
 
 - Rust (stable) — `rustup` recommended.
