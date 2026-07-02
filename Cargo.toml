@@ -1,0 +1,27 @@
+[package]
+name = "alfred-granted"
+version = "0.1.0"
+edition = "2021"
+description = "Alfred workflow to assume AWS profiles and open the AWS console via granted"
+license = "MIT"
+repository = "https://github.com/pdegeeter/alfred-granted-workflow"
+publish = false
+
+[[bin]]
+name = "alfred-granted"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+powerpack = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+# Optimize the binary that ships inside the .alfredworkflow: small and fast to
+# start, since Alfred invokes it on every keystroke.
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
