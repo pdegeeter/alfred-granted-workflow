@@ -1,0 +1,8 @@
+# Rust build output
+/target
+
+# Binary copied into the workflow bundle by `powerpack build`
+/workflow/alfred-granted
+
+# Packaged workflow artifacts
+*.alfredworkflow
