@@ -43,7 +43,7 @@ fn open_console_gets_url_then_opens_it() {
         .with_success("assumego", &format!("GrantedOutput\n{CONSOLE_URL}\n"))
         .with_success("open", "");
 
-    let url = console::open_console(&runner, "prod-admin").expect("should succeed");
+    let url = console::open_console(&runner, "prod-admin", None).expect("should succeed");
 
     assert_eq!(url, CONSOLE_URL);
     assert_eq!(runner.programs_called(), vec!["assumego", "open"]);
@@ -62,10 +62,31 @@ fn open_console_gets_url_then_opens_it() {
 }
 
 #[test]
+fn open_console_with_service_passes_dash_s() {
+    let runner = FakeRunner::new()
+        .with_success("assumego", &format!("GrantedOutput\n{CONSOLE_URL}\n"))
+        .with_success("open", "");
+
+    let url = console::open_console(&runner, "prod-admin", Some("ec2")).expect("should succeed");
+
+    assert_eq!(url, CONSOLE_URL);
+    assert_eq!(runner.programs_called(), vec!["assumego", "open"]);
+
+    let calls = runner.calls.borrow();
+    // A service opens with `-s <alias>` instead of `-c`.
+    assert_eq!(calls[0].args, vec!["prod-admin", "-s", "ec2"]);
+    assert_eq!(
+        calls[0].envs,
+        vec![("GRANTED_ALIAS_CONFIGURED".to_string(), "true".to_string())]
+    );
+    assert_eq!(calls[1].args, vec![CONSOLE_URL]);
+}
+
+#[test]
 fn open_console_fails_when_no_url_returned() {
     let runner = FakeRunner::new().with_success("assumego", "no url in this output");
 
-    let result = console::open_console(&runner, "prod-admin");
+    let result = console::open_console(&runner, "prod-admin", None);
 
     assert!(result.is_err());
     // `open` must not be called when there is no URL to open.
@@ -76,5 +97,5 @@ fn open_console_fails_when_no_url_returned() {
 fn open_console_propagates_assumego_failure() {
     let runner = FakeRunner::new().with_failure("assumego", "sso session expired");
 
-    assert!(console::open_console(&runner, "prod-admin").is_err());
+    assert!(console::open_console(&runner, "prod-admin", None).is_err());
 }

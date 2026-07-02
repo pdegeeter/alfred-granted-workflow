@@ -18,6 +18,21 @@ assume prod
  └─────────────────────────────────────────────────────────┘
 ```
 
+Optionally, after a full profile name and a space, keep typing to pick an AWS
+service — the console then opens straight to it (granted's `assume -s`):
+
+```
+assume prod-admin ec
+ ┌─────────────────────────────────────────────────────────┐
+ │ ec2                                                       │
+ │   Open the AWS console for "prod-admin" → ec2/v2          │
+ │ ecr                                                       │
+ │   Open the AWS console for "prod-admin" → ecr             │
+ │ ecs                                                       │
+ │   Open the AWS console for "prod-admin" → ecs             │
+ └─────────────────────────────────────────────────────────┘
+```
+
 ## How it works
 
 - **Profile suggestions** come from granted itself
@@ -25,8 +40,13 @@ assume prod
   uses), then get re-ranked using granted's frecency database
   (`~/.granted/aws_profiles_frecency`) so your most-used profiles float to the
   top.
-- **Opening the console** runs `assumego <profile> -c` (with
-  `GRANTED_ALIAS_CONFIGURED=true`, the environment granted's shell wrapper sets)
+- **Service suggestions** mirror granted's own `-s` aliases (its `ServiceMap`):
+  `ec2`, `s3`, `lambda`, `ddb`, `sqs`, `sfn`, … Matching is a case-insensitive
+  substring against both the alias and the AWS service it opens, so `dynamo`
+  finds `ddb`/`dynamodb` and `cost` finds `ce`.
+- **Opening the console** runs `assumego <profile> -c` — or
+  `assumego <profile> -s <service>` when a service is selected — with
+  `GRANTED_ALIAS_CONFIGURED=true` (the environment granted's shell wrapper sets)
   to obtain the federated console URL from stdout, then opens it with macOS
   `open`. Extracting the URL ourselves means the workflow works even when
   granted's `DefaultBrowser` is set to `STDOUT`.
@@ -58,8 +78,12 @@ cargo install powerpack-cli   # one-time
 2. Type part of a profile name — matching is a case-insensitive substring, so
    `sandbox` matches every profile containing "sandbox". Multiple
    whitespace-separated terms must all match (`sandbox admin` matches profiles
-   containing both).
-3. Press <kbd>Enter</kbd> to open the AWS console for the selected profile.
+   containing both). Press <kbd>Tab</kbd> to complete the query to a profile.
+3. Press <kbd>Enter</kbd> to open the AWS console home for the selected profile.
+4. *Optional:* instead of pressing Enter, type a space after the full profile
+   name and start typing a service (e.g. `assume prod-admin s3`). The list
+   switches to matching services; Enter opens the console straight to that
+   service. Leaving the service blank (just a trailing space) lists them all.
 
 ## Documentation
 

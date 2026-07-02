@@ -165,3 +165,61 @@ fn filter_no_match_returns_empty() {
 
     assert!(profiles::filter(profiles, "zzz").is_empty());
 }
+
+fn sample_profiles() -> Vec<String> {
+    vec![
+        "prod-admin".to_string(),
+        "sandbox-admin".to_string(),
+        "pre-prod-admin".to_string(),
+    ]
+}
+
+#[test]
+fn parse_service_query_none_without_trailing_whitespace() {
+    // A bare (even exact) profile name is still profile mode: no service yet.
+    assert_eq!(
+        profiles::parse_service_query("prod-admin", &sample_profiles()),
+        None
+    );
+    assert_eq!(
+        profiles::parse_service_query("prod", &sample_profiles()),
+        None
+    );
+    assert_eq!(profiles::parse_service_query("", &sample_profiles()), None);
+}
+
+#[test]
+fn parse_service_query_none_when_first_token_is_not_an_exact_profile() {
+    // Multi-term profile search must keep working: "sandbox" is not a profile.
+    assert_eq!(
+        profiles::parse_service_query("sandbox admin", &sample_profiles()),
+        None
+    );
+}
+
+#[test]
+fn parse_service_query_enters_service_mode_after_exact_profile_and_space() {
+    // Trailing space, empty service query → list all services for the profile.
+    assert_eq!(
+        profiles::parse_service_query("prod-admin ", &sample_profiles()),
+        Some(("prod-admin".to_string(), String::new()))
+    );
+
+    // A partial service query is returned trimmed of leading whitespace.
+    assert_eq!(
+        profiles::parse_service_query("prod-admin ec", &sample_profiles()),
+        Some(("prod-admin".to_string(), "ec".to_string()))
+    );
+    assert_eq!(
+        profiles::parse_service_query("prod-admin   ec2", &sample_profiles()),
+        Some(("prod-admin".to_string(), "ec2".to_string()))
+    );
+}
+
+#[test]
+fn parse_service_query_matches_profile_case_insensitively_but_returns_canonical() {
+    assert_eq!(
+        profiles::parse_service_query("PROD-ADMIN s3", &sample_profiles()),
+        Some(("prod-admin".to_string(), "s3".to_string()))
+    );
+}
