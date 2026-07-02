@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/pdegeeter/alfred-granted-workflow/compare/v0.1.0...v0.2.0) (2026-07-02)
+
+
+### Features
+
+* open the AWS console at a specific service ([#4](https://github.com/pdegeeter/alfred-granted-workflow/issues/4)) ([75f0a6f](https://github.com/pdegeeter/alfred-granted-workflow/commit/75f0a6fd188f9b7277d486ab5ea49b9cec9879a0))
+
 ## 0.1.0 (2026-07-02)
 
 
