@@ -6,3 +6,6 @@
 
 # Packaged workflow artifacts
 *.alfredworkflow
+
+# Per-user workflow configuration written by Alfred
+/workflow/prefs.plist

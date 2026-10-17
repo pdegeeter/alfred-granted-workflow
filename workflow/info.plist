@@ -37,6 +37,8 @@
 	<string>Philippe Degeeter</string>
 	<key>description</key>
 	<string>Assume an AWS profile with granted and open the AWS console in the browser.</string>
+	<key>disabled</key>
+	<false/>
 	<key>name</key>
 	<string>Granted Assume</string>
 	<key>objects</key>
@@ -144,25 +146,27 @@ Requires: granted (https://granted.dev) installed and on PATH.</string>
 		<key>A1000000-0000-0000-0000-0000000000A1</key>
 		<dict>
 			<key>xpos</key>
-			<integer>60</integer>
+			<real>60</real>
 			<key>ypos</key>
-			<integer>60</integer>
+			<real>60</real>
 		</dict>
 		<key>B2000000-0000-0000-0000-0000000000B2</key>
 		<dict>
 			<key>xpos</key>
-			<integer>300</integer>
+			<real>300</real>
 			<key>ypos</key>
-			<integer>60</integer>
+			<real>60</real>
 		</dict>
 		<key>C3000000-0000-0000-0000-0000000000C3</key>
 		<dict>
 			<key>xpos</key>
-			<integer>540</integer>
+			<real>540</real>
 			<key>ypos</key>
-			<integer>60</integer>
+			<real>60</real>
 		</dict>
 	</dict>
+	<key>userconfigurationconfig</key>
+	<array/>
 	<key>variablesdontexport</key>
 	<array/>
 	<key>version</key>
