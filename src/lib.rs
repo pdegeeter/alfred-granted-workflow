@@ -11,3 +11,4 @@ pub mod frecency;
 pub mod profiles;
 pub mod runner;
 pub mod services;
+pub mod sso;
