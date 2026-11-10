@@ -11,7 +11,7 @@ use anyhow::{bail, Result};
 use powerpack::Item;
 
 use alfred_granted::runner::{CommandRunner, SystemRunner};
-use alfred_granted::{alfred, console, frecency, profiles, services};
+use alfred_granted::{alfred, console, frecency, profiles, services, sso};
 
 fn main() -> ExitCode {
     let mut args = env::args().skip(1);
@@ -100,7 +100,14 @@ fn run_console(runner: &dyn CommandRunner, arg: &str) -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(err) => {
-            println!("Failed to open console for {label}");
+            let login_not_approved = err
+                .chain()
+                .find_map(|cause| cause.downcast_ref::<sso::LoginNotApproved>());
+
+            match login_not_approved {
+                Some(reason) => println!("{reason} for {label}"),
+                None => println!("Failed to open console for {label}"),
+            }
             eprintln!("{err:#}");
 
             ExitCode::FAILURE
@@ -117,5 +124,5 @@ fn open_console(
         bail!("no profile provided");
     }
 
-    console::open_console(runner, profile, service)
+    console::open_console(runner, profile, service, console::ASSUME_TIMEOUT)
 }

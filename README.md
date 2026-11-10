@@ -50,6 +50,14 @@ assume prod-admin ec
   to obtain the federated console URL from stdout, then opens it with macOS
   `open`. Extracting the URL ourselves means the workflow works even when
   granted's `DefaultBrowser` is set to `STDOUT`.
+- **Expired SSO session**: when granted needs you to log in to AWS IAM Identity
+  Center first, the workflow opens the sign-in link granted prints in your
+  default browser and waits. Once you approve the login, the console opens for
+  the profile (and service) you picked, without selecting it again. If the
+  login is not approved within 5 minutes, the request is cancelled and Alfred
+  shows `AWS SSO login not approved within 5 minutes for <profile>`. Only
+  `https://` links on AWS sign-in hosts (`*.awsapps.com`, `*.amazonaws.com`)
+  are opened.
 
 ## Requirements
 
@@ -80,6 +88,8 @@ cargo install powerpack-cli   # one-time
    whitespace-separated terms must all match (`sandbox admin` matches profiles
    containing both). Press <kbd>Tab</kbd> to complete the query to a profile.
 3. Press <kbd>Enter</kbd> to open the AWS console home for the selected profile.
+   If your SSO session has expired, approve the AWS sign-in page that opens;
+   the console follows on its own.
 4. *Optional:* instead of pressing Enter, type a space after the full profile
    name and start typing a service (e.g. `assume prod-admin s3`). The list
    switches to matching services; Enter opens the console straight to that

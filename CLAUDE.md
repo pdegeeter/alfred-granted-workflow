@@ -53,8 +53,10 @@ cargo build && ./target/debug/alfred-granted list prod | python3 -m json.tool
 The design principle is: **everything is a pure function except one trait.** The
 only side-effecting boundary — spawning `assumego` and macOS `open` — lives
 behind `runner::CommandRunner` (`SystemRunner` in prod). Tests inject
-`FakeRunner` (`tests/common/mod.rs`) that returns canned stdout and records
-invocations, so the whole suite runs offline. When adding behaviour, keep logic
+`FakeRunner` (`tests/common/mod.rs`) that returns canned stdout (plus canned
+stderr lines or a timeout for `run_streaming`) and records invocations, so the
+whole suite runs offline. `SystemRunner::run_streaming` is tested against fake
+`assumego` shell scripts (`tests/runner_test.rs`). When adding behaviour, keep logic
 pure and route any new process spawn through `CommandRunner`.
 
 Data flow for `list`: `profiles::fetch` runs
@@ -87,9 +89,22 @@ optional service, then `console::open_console` runs `assumego <profile> -c`
 "like `-c` but opens to a service") with `GRANTED_ALIAS_CONFIGURED=true` (the env
 granted's shell wrapper sets, which makes assumego print `GrantedOutput\n<url>`
 to stdout — works even when `DefaultBrowser=STDOUT`), extracts the `https://`
-URL, and shells out to `open`. Note the two `list`/`console` paths use different
-env: listing uses `FORCE_NO_ALIAS=true`, console uses
+URL, and shells out to `/usr/bin/open`. Note the two `list`/`console` paths use
+different env: listing uses `FORCE_NO_ALIAS=true`, console uses
 `GRANTED_ALIAS_CONFIGURED=true`.
+
+**Expired SSO session** (console path only): assumego is run through
+`CommandRunner::run_streaming`, which streams its stderr while it runs and kills
+it after `console::ASSUME_TIMEOUT` (5 min; `runner::TimedOut`). granted prints
+`… please open this link: <url>` on stderr and polls until the login is
+approved; `sso::login_url` accepts only an `https://` link on that line on an
+AWS host (`*.awsapps.com`, `*.amazonaws.com`), which is opened once with
+`/usr/bin/open`. The same assumego process then resumes and prints the console
+URL, so no retry is needed. A timeout after a login link becomes
+`sso::LoginNotApproved`, which `run_console` turns into the notification
+`AWS SSO login not approved within 5 minutes for <profile>`. `run_streaming`
+ends on `try_wait`, not on pipe EOF: the SSO browser granted launches inherits
+its stderr.
 
 ## Conventions that matter here
 

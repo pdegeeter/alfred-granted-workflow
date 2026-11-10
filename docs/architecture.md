@@ -46,8 +46,15 @@ sequenceDiagram
     U->>A: Enter on "prod-admin" (or "prod-admin s3")
     A->>B: console "prod-admin" (or "prod-admin s3")
     B->>G: GRANTED_ALIAS_CONFIGURED=true assumego prod-admin -c (or -s s3)
+    opt SSO session expired
+        G-->>B: stderr "… please open this link: <SSO login URL>"
+        B->>OS: /usr/bin/open <SSO login URL>
+        OS-->>U: AWS sign-in page in browser
+        U->>OS: approve the login
+        Note over G: assumego polls until approved,<br/>then carries on (≤ 5 min, else killed)
+    end
     G-->>B: "GrantedOutput\n<federated console URL>"
-    B->>OS: open <url>
+    B->>OS: /usr/bin/open <url>
     OS-->>U: AWS console in browser
     B-->>A: "Opened AWS console for …" (notification)
 ```
@@ -63,7 +70,8 @@ src/
 ├── services.rs  Static mirror of granted's service ServiceMap; substring filter.
 ├── frecency.rs  Parse ~/.granted/aws_profiles_frecency into name → score.
 ├── alfred.rs    Turn profile names / services into powerpack `Item`s.
-└── console.rs   Resolve the console URL (optionally at a service) and open it.
+├── sso.rs       Recognise the SSO login link assumego prints; `LoginNotApproved` error.
+└── console.rs   Resolve the console URL (optionally at a service), handle SSO login, open it.
 ```
 
 ## Design decisions
@@ -100,6 +108,42 @@ Note the environment difference between the two paths: listing uses
 uses `GRANTED_ALIAS_CONFIGURED=true` (we need the wrapper-style structured
 output that carries the URL).
 
+### Expired SSO session: open the login link, then resume
+
+Without a valid IAM Identity Center token, `assumego` starts a login flow before
+it can assume the profile. granted (0.40, `pkg/idclogin`) writes
+`If the browser does not open automatically, please open this link: <url>` (and
+`Code: XXXX-XXXX` for the device code flow) to **stderr**, tries to launch its
+configured SSO browser, then polls until the login is approved and carries on
+with the original request, printing the console URL as usual.
+
+When Alfred runs the workflow, that browser does not always come up, and the
+console path used to read stderr only once `assumego` exited, so the user never
+saw the link. The console path now runs `assumego` through
+`CommandRunner::run_streaming`, which hands each stderr line over while the
+process runs:
+
+- `sso::login_url` recognises the link line and returns the URL only if it is
+  `https://` on an AWS sign-in host (`*.awsapps.com`, `*.amazonaws.com`, no
+  credentials or port). Nothing else printed on stderr is ever opened.
+- The link is opened once with `/usr/bin/open` (absolute, so it does not depend
+  on the `PATH` Alfred provides). A failure to open it is logged, not fatal:
+  granted may have opened its own browser.
+- The same `assumego` process resumes once the login is approved, so the
+  console opens for the same profile and service without a second selection.
+  If granted's own browser launch works too, the sign-in page shows up twice;
+  approving either one is enough.
+- The whole run is bounded by `console::ASSUME_TIMEOUT` (5 minutes, shorter
+  than the 10-minute device code lifetime). On timeout `assumego` is killed; if
+  a login link had been seen, the error is `sso::LoginNotApproved` and the
+  Alfred notification reads `AWS SSO login not approved within 5 minutes for
+  <profile>`.
+
+`SystemRunner::run_streaming` detects the end of `assumego` with `try_wait`,
+not with its pipes closing: granted launches the SSO browser with its own
+stderr, so a browser process can hold the pipe open long after `assumego`
+exited.
+
 ### Substring filtering in Rust
 
 The Script Filter sets `alfredfiltersresults = false`, so Alfred does not filter
@@ -135,7 +179,11 @@ parse.
 ### The `CommandRunner` boundary
 
 Every external process (`assumego`, `open`) goes through the `CommandRunner`
-trait. Production uses `SystemRunner`; tests inject a `FakeRunner` that returns
-canned output and records invocations. Everything else — parsing, ranking,
-filtering, URL extraction — is pure and unit-tested offline. This keeps the test
+trait: `run` captures stdout, `run_streaming` also streams stderr lines to a
+callback and kills the process after a timeout (error `runner::TimedOut`).
+Production uses `SystemRunner`; tests inject a `FakeRunner` that returns canned
+output (and canned stderr lines or a timeout for `run_streaming`) and records
+invocations. Everything else — parsing, ranking, filtering, URL and login link
+extraction — is pure and unit-tested offline. `SystemRunner::run_streaming`
+itself is tested against fake `assumego` shell scripts. This keeps the test
 suite fast and independent of any AWS/granted setup.

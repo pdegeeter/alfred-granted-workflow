@@ -61,7 +61,9 @@ cargo build
 # Service mode: an exact profile name + a space switches to services
 ./target/debug/alfred-granted list "prod-admin ec" | python3 -m json.tool
 
-# Open the console for a profile (runs assumego + open)
+# Open the console for a profile (runs assumego + open). With an expired SSO
+# session, the AWS sign-in page opens first and the console follows once the
+# login is approved (up to 5 minutes).
 ./target/debug/alfred-granted console prod-admin
 
 # Open the console straight to a service (assumego <profile> -s <alias>)
@@ -72,8 +74,11 @@ cargo build
 
 All logic is pure and unit-tested; the only side-effecting code path — spawning
 `assumego` and `open` — is hidden behind the `CommandRunner` trait and mocked in
-tests via `FakeRunner` (`tests/common/mod.rs`). This means the whole suite runs
-offline, without granted, AWS credentials, or a network connection.
+tests via `FakeRunner` (`tests/common/mod.rs`), which can also replay stderr
+lines (`with_stderr`) and simulate a timeout (`with_timeout`). The real
+`SystemRunner::run_streaming` is tested against fake `assumego` shell scripts
+written to a temporary directory. This means the whole suite runs offline,
+without granted, AWS credentials, or a network connection.
 
 | Test file                 | Covers                                                        |
 | ------------------------- | ------------------------------------------------------------- |
@@ -81,7 +86,9 @@ offline, without granted, AWS credentials, or a network connection.
 | `tests/profiles_test.rs`  | Completion parsing, frecency ordering, substring/multi-term filtering, `fetch` invocation, service-mode detection (`parse_service_query`). |
 | `tests/services_test.rs`  | The static service table (sorted, unique) and its substring filter over alias + destination. |
 | `tests/alfred_test.rs`    | JSON shape of profile and service items (`arg` encoding, subtitles, empty-state item). |
-| `tests/console_test.rs`   | URL extraction and the assumego → open sequence (with and without `-s <service>`), including failure paths. |
+| `tests/console_test.rs`   | URL extraction and the assumego → open sequence (with and without `-s <service>`), the SSO login link opened while assumego waits, the login timeout, and failure paths. |
+| `tests/sso_test.rs`       | Recognising granted's SSO login link line; rejecting non-`https` links and non-AWS hosts; the `LoginNotApproved` message. |
+| `tests/runner_test.rs`    | `SystemRunner::run_streaming` against fake `assumego` scripts: stderr streamed while running, timeout kill, failures, not waiting on processes left holding stderr. |
 
 When adding behaviour, keep new logic pure where possible and assert on
 `FakeRunner` invocations for the process-spawning parts.
