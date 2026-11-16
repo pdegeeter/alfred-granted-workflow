@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/pdegeeter/alfred-granted-workflow/compare/v0.2.0...v0.2.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **console:** open the console in the current browser window ([#8](https://github.com/pdegeeter/alfred-granted-workflow/issues/8)) ([995e1f5](https://github.com/pdegeeter/alfred-granted-workflow/commit/995e1f5d3785e2ebcbeff5b7c916816ce503ab89))
+
 ## [0.2.0](https://github.com/pdegeeter/alfred-granted-workflow/compare/v0.1.0...v0.2.0) (2026-11-10)
 
 
