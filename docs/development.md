@@ -66,7 +66,7 @@ cargo build
 # login is approved (up to 5 minutes).
 ./target/debug/alfred-granted console prod-admin
 
-# Open the console straight to a service (assumego <profile> -s <alias>)
+# Open the console straight to a service (assumego <profile> -s <alias> -u)
 ./target/debug/alfred-granted console "prod-admin ec2"
 ```
 
@@ -86,7 +86,7 @@ without granted, AWS credentials, or a network connection.
 | `tests/profiles_test.rs`  | Completion parsing, frecency ordering, substring/multi-term filtering, `fetch` invocation, service-mode detection (`parse_service_query`). |
 | `tests/services_test.rs`  | The static service table (sorted, unique) and its substring filter over alias + destination. |
 | `tests/alfred_test.rs`    | JSON shape of profile and service items (`arg` encoding, subtitles, empty-state item). |
-| `tests/console_test.rs`   | URL extraction and the assumego → open sequence (with and without `-s <service>`), the SSO login link opened while assumego waits, the login timeout, and failure paths. |
+| `tests/console_test.rs`   | URL extraction and the assumego → open sequence (`-c -u`, or `-s <service> -u`), the SSO login link opened while assumego waits, the login timeout, and failure paths. |
 | `tests/sso_test.rs`       | Recognising granted's SSO login link line; rejecting non-`https` links and non-AWS hosts; the `LoginNotApproved` message. |
 | `tests/runner_test.rs`    | `SystemRunner::run_streaming` against fake `assumego` scripts: stderr streamed while running, timeout kill, failures, not waiting on processes left holding stderr. |
 

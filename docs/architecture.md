@@ -96,12 +96,20 @@ the list falls back to alphabetical order — it never breaks listing.
 ### Opening the console ourselves
 
 granted can open the browser itself, but its behaviour depends on the user's
-`DefaultBrowser` setting — which may be `STDOUT` (print the URL instead of
-opening it). To be robust regardless of that setting, we run `assumego -c` with
-`GRANTED_ALIAS_CONFIGURED=true` — the same environment granted's `assume` shell
-wrapper sets — so `assumego` prints its structured output (`GrantedOutput`
-followed by the federated URL) to stdout. We extract that URL and call macOS
-`open` ourselves, making the Enter action deterministic.
+`DefaultBrowser` setting. `STDOUT` prints the URL instead of opening it; a
+Chromium browser (Chrome, Brave, Edge, Vivaldi…) is launched with
+`--profile-directory=<aws profile>`, which opens a dedicated browser profile in
+a new window and prints no URL. To be robust regardless of that setting, we run
+`assumego -c -u` with `GRANTED_ALIAS_CONFIGURED=true` — the same environment
+granted's `assume` shell wrapper sets. `-u` (`--url`) makes granted print the
+URL and never launch a browser, so `assumego` prints its structured output
+(`GrantedOutput` followed by the federated URL) to stdout. We extract that URL
+and call macOS `open` ourselves, which opens it in a new tab of the default
+browser's current window and makes the Enter action deterministic.
+
+The trade-off is the loss of granted's per-profile browser isolation: every
+console shares the default browser profile, so signing in to a second AWS
+account signs out of the first.
 
 Note the environment difference between the two paths: listing uses
 `FORCE_NO_ALIAS=true` (we only want completion output), while the console path
@@ -172,9 +180,9 @@ The service list (`services::SERVICES`) is a static snapshot of granted's own
 fixed table upstream, not runtime data, so there is nothing to query at runtime.
 We filter it by substring against **both** the alias and its console destination
 (so `dynamo` finds `ddb`, `cost` finds `ce` → `cost-management`). Opening a
-service uses granted's `-s <alias>` flag, which is documented as "like `-c` but
-opens to a specified service" and emits the same structured stdout we already
-parse.
+service uses granted's `-s <alias>` flag (with `-u`, as for `-c`), which is
+documented as "like `-c` but opens to a specified service" and emits the same
+structured stdout we already parse.
 
 ### The `CommandRunner` boundary
 

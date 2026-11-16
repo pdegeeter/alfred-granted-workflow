@@ -84,11 +84,13 @@ exist, user types `prod admin`) — an accepted trade-off for a delimiter-free
 syntax.
 
 Data flow for `console`: `run_console` splits its single `arg` into profile and
-optional service, then `console::open_console` runs `assumego <profile> -c`
-(no service) or `assumego <profile> -s <alias>` (service; granted's `-s` is
+optional service, then `console::open_console` runs `assumego <profile> -c -u`
+(no service) or `assumego <profile> -s <alias> -u` (service; granted's `-s` is
 "like `-c` but opens to a service") with `GRANTED_ALIAS_CONFIGURED=true` (the env
 granted's shell wrapper sets, which makes assumego print `GrantedOutput\n<url>`
-to stdout — works even when `DefaultBrowser=STDOUT`), extracts the `https://`
+to stdout). `-u` keeps granted from launching the browser itself, whatever
+`DefaultBrowser` is: with a Chromium browser it would open a per-AWS-profile
+browser profile in a new window and print no URL. It then extracts the `https://`
 URL, and shells out to `/usr/bin/open`. Note the two `list`/`console` paths use
 different env: listing uses `FORCE_NO_ALIAS=true`, console uses
 `GRANTED_ALIAS_CONFIGURED=true`.

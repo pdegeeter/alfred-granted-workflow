@@ -67,10 +67,10 @@ fn open_console_gets_url_then_opens_it() {
     assert_eq!(runner.programs_called(), vec!["assumego", OPEN]);
 
     let calls = runner.calls.borrow();
-    // assumego is called in console mode with the wrapper's environment so it
-    // prints its structured output (including the URL) to stdout, bounded by
-    // the timeout.
-    assert_eq!(calls[0].args, vec!["prod-admin", "-c"]);
+    // assumego is called in console mode with `-u` and the wrapper's
+    // environment so it prints the URL to stdout instead of launching a
+    // browser itself, bounded by the timeout.
+    assert_eq!(calls[0].args, vec!["prod-admin", "-c", "-u"]);
     assert_eq!(
         calls[0].envs,
         vec![("GRANTED_ALIAS_CONFIGURED".to_string(), "true".to_string())]
@@ -81,7 +81,7 @@ fn open_console_gets_url_then_opens_it() {
 }
 
 #[test]
-fn open_console_with_service_passes_dash_s() {
+fn open_console_with_service_passes_dash_s_and_dash_u() {
     let runner = FakeRunner::new()
         .with_success("assumego", &format!("GrantedOutput\n{CONSOLE_URL}\n"))
         .with_success(OPEN, "");
@@ -93,8 +93,8 @@ fn open_console_with_service_passes_dash_s() {
     assert_eq!(runner.programs_called(), vec!["assumego", OPEN]);
 
     let calls = runner.calls.borrow();
-    // A service opens with `-s <alias>` instead of `-c`.
-    assert_eq!(calls[0].args, vec!["prod-admin", "-s", "ec2"]);
+    // A service opens with `-s <alias>` instead of `-c`, still with `-u`.
+    assert_eq!(calls[0].args, vec!["prod-admin", "-s", "ec2", "-u"]);
     assert_eq!(
         calls[0].envs,
         vec![("GRANTED_ALIAS_CONFIGURED".to_string(), "true".to_string())]
@@ -139,7 +139,7 @@ fn open_console_opens_sso_login_link_then_resumes() {
     assert_eq!(runner.programs_called(), vec!["assumego", OPEN, OPEN]);
 
     let calls = runner.calls.borrow();
-    assert_eq!(calls[0].args, vec!["prod-admin", "-s", "s3"]);
+    assert_eq!(calls[0].args, vec!["prod-admin", "-s", "s3", "-u"]);
     assert_eq!(calls[1].args, vec![LOGIN_URL]);
     assert_eq!(calls[2].args, vec![CONSOLE_URL]);
 }

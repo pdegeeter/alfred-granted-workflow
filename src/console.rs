@@ -1,22 +1,24 @@
 //! Opening the AWS console for a selected profile.
 //!
-//! We run `assumego <profile> -c` with `GRANTED_ALIAS_CONFIGURED=true`. That is
-//! the environment granted's own shell wrapper (`assume`) sets: it makes
+//! We run `assumego <profile> -c -u` with `GRANTED_ALIAS_CONFIGURED=true`. That
+//! is the environment granted's own shell wrapper (`assume`) sets: it makes
 //! `assumego` emit its structured output on stdout rather than depending on an
-//! interactive shell. When a service alias is given we pass `-s <service>`
-//! instead of `-c` (granted's `-s` is "like `-c` but opens to a specified
-//! service"), which yields the same structured output pointed at that service.
-//! For console mode that output is:
+//! interactive shell. `-u` (`--url`) makes granted print the console URL instead
+//! of launching a browser itself: with `DefaultBrowser` set to a Chromium
+//! browser, granted would otherwise start it with `--profile-directory=<profile>`,
+//! which opens a separate browser profile in a new window. When a service alias
+//! is given we pass `-s <service>` instead of `-c` (granted's `-s` is "like `-c`
+//! but opens to a specified service"), which yields the same structured output
+//! pointed at that service. For console mode that output is:
 //!
 //! ```text
 //! GrantedOutput
 //! https://<region>.signin.aws.amazon.com/federation?...
 //! ```
 //!
-//! We extract that URL and open it ourselves with macOS `open`, so the workflow
-//! works consistently regardless of the user's granted `DefaultBrowser` setting
-//! (which may be `STDOUT`, in which case the wrapper — not us — would normally
-//! print the URL).
+//! We extract that URL and open it ourselves with macOS `open`, so the console
+//! opens in a new tab of the default browser's current window, whatever the
+//! user's granted `DefaultBrowser` setting is.
 //!
 //! When the AWS IAM Identity Center session has expired, `assumego` first
 //! prints an SSO login link on stderr and waits for the login to be approved
@@ -58,8 +60,8 @@ pub fn extract_url(output: &str) -> Option<String> {
 /// Assume `profile` in console mode and open the resulting URL in the browser.
 ///
 /// When `service` is `Some(alias)`, the console opens directly at that AWS
-/// service (`assumego <profile> -s <alias>`); otherwise it opens the console
-/// home (`assumego <profile> -c`). If `assumego` asks for an SSO login, the
+/// service (`assumego <profile> -s <alias> -u`); otherwise it opens the console
+/// home (`assumego <profile> -c -u`). If `assumego` asks for an SSO login, the
 /// login link is opened in the browser and the call waits for the login to be
 /// approved, up to `timeout`. Returns the opened URL on success so the caller
 /// can report it to Alfred.
@@ -70,8 +72,8 @@ pub fn open_console(
     timeout: Duration,
 ) -> Result<String> {
     let args: Vec<&str> = match service {
-        Some(alias) => vec![profile, "-s", alias],
-        None => vec![profile, "-c"],
+        Some(alias) => vec![profile, "-s", alias, "-u"],
+        None => vec![profile, "-c", "-u"],
     };
 
     let mut login_url: Option<String> = None;

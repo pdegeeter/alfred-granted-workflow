@@ -44,12 +44,16 @@ assume prod-admin ec
   `ec2`, `s3`, `lambda`, `ddb`, `sqs`, `sfn`, … Matching is a case-insensitive
   substring against both the alias and the AWS service it opens, so `dynamo`
   finds `ddb`/`dynamodb` and `cost` finds `ce`.
-- **Opening the console** runs `assumego <profile> -c` — or
-  `assumego <profile> -s <service>` when a service is selected — with
+- **Opening the console** runs `assumego <profile> -c -u` — or
+  `assumego <profile> -s <service> -u` when a service is selected — with
   `GRANTED_ALIAS_CONFIGURED=true` (the environment granted's shell wrapper sets)
   to obtain the federated console URL from stdout, then opens it with macOS
-  `open`. Extracting the URL ourselves means the workflow works even when
-  granted's `DefaultBrowser` is set to `STDOUT`.
+  `open`. `-u` stops granted from launching the browser itself, so the console
+  opens in a new tab of your default browser's current window whatever
+  granted's `DefaultBrowser` is. With a Chromium browser (Chrome, Brave, Edge…)
+  granted would otherwise open a dedicated browser profile per AWS profile, in a
+  new window. The trade-off: all consoles share one browser profile, so only one
+  AWS account is signed in at a time.
 - **Expired SSO session**: when granted needs you to log in to AWS IAM Identity
   Center first, the workflow opens the sign-in link granted prints in your
   default browser and waits. Once you approve the login, the console opens for
