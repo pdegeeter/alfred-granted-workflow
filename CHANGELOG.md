@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/pdegeeter/alfred-granted-workflow/compare/v0.2.1...v0.2.2) (2026-11-18)
+
+
+### Bug Fixes
+
+* **deploy:** update the installed workflow in place on Alfred 6 ([#10](https://github.com/pdegeeter/alfred-granted-workflow/issues/10)) ([6494a77](https://github.com/pdegeeter/alfred-granted-workflow/commit/6494a77423a423510060582b580fe8bbda50b9ce))
+
 ## [0.2.1](https://github.com/pdegeeter/alfred-granted-workflow/compare/v0.2.0...v0.2.1) (2026-11-16)
 
 
