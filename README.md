@@ -81,7 +81,7 @@ Or build and deploy from source:
 
 ```sh
 cargo install powerpack-cli   # one-time
-./scripts/deploy.sh           # build + symlink into Alfred
+./scripts/deploy.sh           # build + install (or update) in Alfred
 ```
 
 ## Usage

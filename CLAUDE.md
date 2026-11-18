@@ -38,7 +38,7 @@ cargo clippy --all-targets -- -D warnings # lint; warnings are errors (CI gate)
 cargo fmt --all                           # format (CI checks with --check)
 
 ./scripts/build.sh            # sync plist version + build release + package .alfredworkflow
-./scripts/deploy.sh           # build + symlink workflow into Alfred (live dev)
+./scripts/deploy.sh           # build + update the installed workflow in place (imports it the first time)
 ./scripts/deploy.sh --import  # build + open the .alfredworkflow to import it
 
 # Exercise the binary directly (it speaks Alfred JSON on stdout):
@@ -121,11 +121,14 @@ its stderr.
   score map, never an error — listing must not break.
 - **`list` never hard-fails**: errors are surfaced as an Alfred item so the user
   sees a readable message in the dropdown.
-- **Editing `workflow/info.plist`**: if you edit the workflow in Alfred's UI
-  while symlinked, copy the updated `info.plist` back into `workflow/` before
-  committing, and validate with `plutil -lint workflow/info.plist`. The binary
-  in `workflow/` is a build artifact (gitignored); `info.plist` and `icon.png`
-  are tracked.
+- **Deploying**: `scripts/deploy.sh` copies the build over the installed
+  workflow found by bundle id (never `powerpack link`: Alfred 6 turns symlinks
+  into stale copies and fails to re-import over an install).
+- **Editing `workflow/info.plist`**: if you edit the workflow in Alfred's UI,
+  copy the updated `info.plist` from the installed folder back into `workflow/`
+  before committing (the next deploy overwrites it), and validate with
+  `plutil -lint workflow/info.plist`. The binary in `workflow/` is a build
+  artifact (gitignored); `info.plist` and `icon.png` are tracked.
 - **Workflow icon**: `workflow/icon.png` is generated from
   `assets/granted-logo.svg` via `scripts/icon.sh` (needs `rsvg-convert`). Don't
   hand-edit the PNG; edit the SVG and regenerate. Both files are committed; it is
